@@ -1,0 +1,182 @@
+Prompt / Memory Summary
+
+Project: Multi-Exchange Crypto Arbitrage Signal System using Telegram Bot + Redis + Worker + Alert Service
+Python Environment: Python 3.12.7, python-telegram-bot v20.3, httpx v0.24.1, anyio v4.11.0
+
+1️⃣ Microservice Architecture
+
+We structured the system as independent microservices:
+
+Bot Service (bot_service/)
+
+Handles Telegram interactions.
+
+Features:
+
+/start command: greets user with "Hello eripapa".
+
+Exchange selection: user selects 2 exchanges from a predefined list.
+
+Threshold input: user provides numeric threshold.
+
+Pushes user submission (user_info) to Redis Stream user_submissions.
+
+Redis connection is independent and configurable via config.py.
+
+Code files:
+
+bot.py → main entrypoint
+
+handlers.py → manages all Telegram commands, buttons, threshold input
+
+config.py → bot token, Redis host/port/db
+
+Worker Service (worker_service/)
+
+Listens to user_submissions Redis stream.
+
+Processes submissions:
+
+Fetches exchange/asset prices (via api.py placeholder).
+
+Calculates spread between two exchanges.
+
+Compares with threshold.
+
+Pushes alerts to alerts Redis stream if threshold exceeded.
+
+Independent, continuously listens for new submissions.
+
+Alert Service (alert_service/)
+
+Listens to alerts Redis stream.
+
+Sends Telegram messages to users via Bot API.
+
+Independent from Worker and Bot services.
+
+Can scale horizontally if needed.
+
+Redis
+
+Acts as central pub/sub and queue between microservices.
+
+Streams:
+
+user_submissions → used by Worker
+
+alerts → used by Alert Service
+
+2️⃣ Telegram Bot Flow
+
+User sends /start.
+
+Bot:
+
+Greets user.
+
+Shows exchange selection buttons (from list of 22 exchanges).
+
+Checks previous configuration; optionally allows reuse.
+
+User selects two unique exchanges.
+
+Bot asks for threshold value.
+
+Bot constructs user_info:
+
+{
+  "user_id": 5314051824,
+  "username": null,
+  "first_name": "Saicharan",
+  "selected_exchanges": ["coinbase", "kraken"],
+  "threshold": 7.5
+}
+
+
+Bot pushes this user_info to Redis user_submissions stream.
+
+Worker reads stream, fetches market data, calculates spread, and pushes alert if threshold exceeded.
+
+Alert service sends message to Telegram user.
+
+3️⃣ Redis Connection Notes
+
+Redis must be running before other services.
+
+Local testing: REDIS_HOST = "127.0.0.1"
+
+Docker networking: REDIS_HOST = "redis" (if all containers on same network)
+
+Tested with Docker container:
+
+docker start redis-server
+docker ps
+
+
+Redis streams used:
+
+user_submissions
+
+alerts
+
+4️⃣ Folder Structure
+GoQuant-1/
+├── bot_service/
+│   ├── bot.py
+│   ├── config.py
+│   └── handlers.py
+├── worker_service/
+│   ├── worker.py
+│   ├── api.py
+│   └── config.py
+├── alert_service/
+│   ├── alert_worker.py
+│   └── config.py
+└── redis/   # optional Docker files
+
+5️⃣ Current Issues Solved
+
+Bot and services cannot start if Redis is down → fixed by starting container first.
+
+Redis host mismatch (redis vs 127.0.0.1) → resolved.
+
+Handlers.py updated to push data to Redis instead of local JSON.
+
+Bot, Worker, Alert Service are independent microservices.
+
+6️⃣ Next Steps / Remaining Work
+
+API Integration:
+
+Worker service should fetch real-time market data from GoMarket API.
+
+Normalization of data across multiple exchanges.
+
+Arbitrage Detection:
+
+Calculate spreads for multiple assets/exchanges.
+
+Compare with threshold.
+
+Optimized Alerts:
+
+Avoid duplicate API requests for same exchange pair + threshold.
+
+Only one API request for many users.
+
+Docker Compose:
+
+Automate launching Redis, Bot, Worker, Alert Service.
+
+Persistence Improvements:
+
+Save last user configuration for quick reuse.
+
+Possibly store user preferences in Redis hashes for fast access.
+
+You can copy-paste this prompt in a future session, and I can pick up exactly where we left off, including code, Docker setup, and microservice orchestration.
+
+If you want, I can also write the full Docker Compose file and instructions now so that you can start all services with one command and continue development smoothly.
+
+Do you want me to do that next?
